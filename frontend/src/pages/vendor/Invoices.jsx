@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { getMyInvoices } from '../../slices/invoiceSlice';
+import { getVendorInvoices } from '../../slices/invoiceSlice';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import {
@@ -12,24 +12,28 @@ import {
   FiChevronRight,
   FiX,
   FiDollarSign,
+  FiUser,
   FiCalendar,
-  FiPackage,
   FiRefreshCw,
   FiCheckCircle,
   FiClock,
   FiAlertCircle,
+  FiTrendingUp,
 } from 'react-icons/fi';
 import {
   PieChart,
   Pie,
   Cell,
   ResponsiveContainer,
-  AreaChart,
-  Area,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
+  Legend,
+  AreaChart,
+  Area,
 } from 'recharts';
 
 // ============================================
@@ -42,7 +46,7 @@ const SkeletonBox = ({ className = '' }) => (
 const TableRowSkeleton = () => (
   <tr className="border-b border-gray-100">
     <td className="py-4 px-4"><SkeletonBox className="h-4 w-24" /></td>
-    <td className="py-4 px-4"><SkeletonBox className="h-4 w-28" /></td>
+    <td className="py-4 px-4"><SkeletonBox className="h-4 w-32" /></td>
     <td className="py-4 px-4"><SkeletonBox className="h-4 w-20" /></td>
     <td className="py-4 px-4"><SkeletonBox className="h-6 w-16 rounded-full" /></td>
     <td className="py-4 px-4"><SkeletonBox className="h-4 w-16" /></td>
@@ -122,16 +126,14 @@ const InvoiceDetailModal = ({ invoice, onClose, onDownload }) => {
               </div>
             </div>
 
-            {/* Vendor Info */}
+            {/* Customer Info */}
             <div className="bg-gray-50 rounded-lg p-4">
               <div className="flex items-center gap-2 text-gray-600 mb-2">
-                <FiPackage className="w-4 h-4" />
-                <span className="text-sm font-medium">Vendor</span>
+                <FiUser className="w-4 h-4" />
+                <span className="text-sm font-medium">Customer</span>
               </div>
-              <p className="font-semibold text-gray-900">
-                {invoice.vendor?.vendorInfo?.businessName || invoice.vendor?.name || 'N/A'}
-              </p>
-              <p className="text-sm text-gray-500">{invoice.vendor?.email}</p>
+              <p className="font-semibold text-gray-900">{invoice.customer?.name || 'N/A'}</p>
+              <p className="text-sm text-gray-500">{invoice.customer?.email}</p>
             </div>
 
             {/* Invoice Items */}
@@ -190,11 +192,11 @@ const InvoiceDetailModal = ({ invoice, onClose, onDownload }) => {
                   <span className="text-indigo-600">₹{invoice.amounts?.total?.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-sm pt-2">
-                  <span className="text-gray-600">Amount Paid</span>
+                  <span className="text-gray-600">Amount Received</span>
                   <span className="text-green-600">₹{invoice.amounts?.amountPaid?.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Amount Due</span>
+                  <span className="text-gray-600">Amount Pending</span>
                   <span className={invoice.amounts?.amountDue > 0 ? 'text-red-600 font-medium' : 'text-gray-900'}>
                     ₹{invoice.amounts?.amountDue?.toFixed(2)}
                   </span>
@@ -235,7 +237,7 @@ const InvoiceDetailModal = ({ invoice, onClose, onDownload }) => {
 // ============================================
 // MAIN COMPONENT
 // ============================================
-const CustomerInvoices = () => {
+const VendorInvoices = () => {
   const dispatch = useDispatch();
   const { invoices: storeInvoices, isLoading } = useSelector((state) => state.invoices);
   
@@ -248,7 +250,7 @@ const CustomerInvoices = () => {
 
   // Fetch invoices
   useEffect(() => {
-    dispatch(getMyInvoices());
+    dispatch(getVendorInvoices());
   }, [dispatch]);
 
   // Get invoices array
@@ -265,8 +267,8 @@ const CustomerInvoices = () => {
       const term = searchTerm.toLowerCase();
       filtered = filtered.filter(inv => 
         inv.invoiceNumber?.toLowerCase().includes(term) ||
-        inv.vendor?.name?.toLowerCase().includes(term) ||
-        inv.vendor?.vendorInfo?.businessName?.toLowerCase().includes(term)
+        inv.customer?.name?.toLowerCase().includes(term) ||
+        inv.customer?.email?.toLowerCase().includes(term)
       );
     }
     
@@ -288,7 +290,7 @@ const CustomerInvoices = () => {
   // Calculate stats
   const stats = useMemo(() => {
     const totalAmount = invoices.reduce((sum, inv) => sum + (inv.amounts?.total || 0), 0);
-    const paidAmount = invoices.reduce((sum, inv) => sum + (inv.amounts?.amountPaid || 0), 0);
+    const receivedAmount = invoices.reduce((sum, inv) => sum + (inv.amounts?.amountPaid || 0), 0);
     const pendingAmount = invoices.reduce((sum, inv) => sum + (inv.amounts?.amountDue || 0), 0);
     
     const statusCounts = {};
@@ -302,27 +304,34 @@ const CustomerInvoices = () => {
       color: statusConfig[status]?.color || '#6b7280',
     }));
 
-    // Monthly spending
+    // Monthly revenue
     const monthlyData = {};
     invoices.forEach(inv => {
       const month = new Date(inv.createdAt).toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
-      monthlyData[month] = (monthlyData[month] || 0) + (inv.amounts?.total || 0);
+      if (!monthlyData[month]) {
+        monthlyData[month] = { total: 0, paid: 0 };
+      }
+      monthlyData[month].total += (inv.amounts?.total || 0);
+      if (inv.status === 'paid') {
+        monthlyData[month].paid += (inv.amounts?.total || 0);
+      }
     });
-    const spendingData = Object.entries(monthlyData).slice(-6).map(([month, amount]) => ({
+    const revenueData = Object.entries(monthlyData).slice(-6).map(([month, data]) => ({
       month,
-      amount
+      total: data.total,
+      paid: data.paid
     }));
 
     return { 
       total: invoices.length, 
       totalAmount, 
-      paidAmount, 
+      receivedAmount, 
       pendingAmount,
       paid: statusCounts.paid || 0,
       pending: (statusCounts.sent || 0) + (statusCounts.pending || 0) + (statusCounts.draft || 0),
       overdue: statusCounts.overdue || 0,
       statusData,
-      spendingData
+      revenueData
     };
   }, [invoices]);
 
@@ -363,13 +372,14 @@ const CustomerInvoices = () => {
     doc.text(new Date(invoice.createdAt).toLocaleDateString(), 50, 55);
     doc.text(new Date(invoice.dueDate).toLocaleDateString(), 50, 62);
     
-    // Vendor
+    // Customer
     doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
-    doc.text('From:', 120, 55);
+    doc.text('Bill To:', 120, 55);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
-    doc.text(invoice.vendor?.vendorInfo?.businessName || invoice.vendor?.name || 'Vendor', 120, 63);
+    doc.text(invoice.customer?.name || 'Customer', 120, 63);
+    doc.text(invoice.customer?.email || '', 120, 70);
     
     // Items table
     const tableData = invoice.items?.map(item => [
@@ -380,7 +390,7 @@ const CustomerInvoices = () => {
     ]) || [];
     
     autoTable(doc, {
-      startY: 80,
+      startY: 85,
       head: [['Description', 'Qty', 'Unit Price', 'Total']],
       body: tableData,
       theme: 'striped',
@@ -395,7 +405,7 @@ const CustomerInvoices = () => {
     });
     
     // Summary
-    const finalY = doc.lastAutoTable?.finalY || 120;
+    const finalY = doc.lastAutoTable?.finalY || 125;
     
     doc.setFontSize(9);
     doc.text('Subtotal:', 130, finalY + 15);
@@ -417,11 +427,12 @@ const CustomerInvoices = () => {
 
   // Download all invoices as CSV
   const downloadCSV = () => {
-    const headers = ['Invoice Number', 'Date', 'Vendor', 'Status', 'Subtotal', 'Tax', 'Total', 'Paid', 'Due'];
+    const headers = ['Invoice Number', 'Date', 'Customer', 'Email', 'Status', 'Subtotal', 'Tax', 'Total', 'Received', 'Pending'];
     const rows = filteredInvoices.map(inv => [
       inv.invoiceNumber,
       new Date(inv.createdAt).toLocaleDateString(),
-      inv.vendor?.vendorInfo?.businessName || inv.vendor?.name || 'N/A',
+      inv.customer?.name || 'N/A',
+      inv.customer?.email || 'N/A',
       inv.status,
       inv.amounts?.subtotal?.toFixed(2) || '0.00',
       inv.amounts?.tax?.toFixed(2) || '0.00',
@@ -438,20 +449,20 @@ const CustomerInvoices = () => {
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = `my_invoices_${new Date().toISOString().split('T')[0]}.csv`;
+    link.download = `vendor_invoices_${new Date().toISOString().split('T')[0]}.csv`;
     link.click();
   };
 
   return (
-    <div className="space-y-6">
+    <div className="p-6 space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">My Invoices</h1>
-          <p className="text-gray-600 mt-1">View and download your rental invoices</p>
+          <p className="text-gray-600 mt-1">Manage and track your customer invoices</p>
         </div>
         <button
-          onClick={() => dispatch(getMyInvoices())}
+          onClick={() => dispatch(getVendorInvoices())}
           className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
         >
           <FiRefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
@@ -475,20 +486,20 @@ const CustomerInvoices = () => {
         <div className="bg-white border border-gray-200 rounded-lg p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-500">Total Spent</p>
+              <p className="text-sm text-gray-500">Total Revenue</p>
               <p className="text-2xl font-bold text-gray-900">₹{stats.totalAmount.toFixed(2)}</p>
             </div>
-            <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
-              <FiDollarSign className="w-5 h-5 text-green-600" />
+            <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
+              <FiTrendingUp className="w-5 h-5 text-blue-600" />
             </div>
           </div>
         </div>
         <div className="bg-white border border-gray-200 rounded-lg p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-500">Paid</p>
-              <p className="text-2xl font-bold text-green-600">₹{stats.paidAmount.toFixed(2)}</p>
-              <p className="text-xs text-gray-500">{stats.paid} invoices</p>
+              <p className="text-sm text-gray-500">Received</p>
+              <p className="text-2xl font-bold text-green-600">₹{stats.receivedAmount.toFixed(2)}</p>
+              <p className="text-xs text-gray-500">{stats.paid} paid invoices</p>
             </div>
             <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
               <FiCheckCircle className="w-5 h-5 text-green-600" />
@@ -498,7 +509,7 @@ const CustomerInvoices = () => {
         <div className="bg-white border border-gray-200 rounded-lg p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-500">Amount Due</p>
+              <p className="text-sm text-gray-500">Pending</p>
               <p className="text-2xl font-bold text-amber-600">₹{stats.pendingAmount.toFixed(2)}</p>
               <p className="text-xs text-gray-500">{stats.overdue} overdue</p>
             </div>
@@ -513,16 +524,16 @@ const CustomerInvoices = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Status Distribution */}
         <div className="bg-white border border-gray-200 rounded-lg p-5">
-          <h3 className="text-sm font-semibold text-gray-700 mb-4">Invoice Status</h3>
+          <h3 className="text-sm font-semibold text-gray-700 mb-4">Invoice Status Distribution</h3>
           {stats.statusData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={180}>
+            <ResponsiveContainer width="100%" height={200}>
               <PieChart>
                 <Pie
                   data={stats.statusData}
                   cx="50%"
                   cy="50%"
-                  innerRadius={45}
-                  outerRadius={70}
+                  innerRadius={50}
+                  outerRadius={80}
                   paddingAngle={2}
                   dataKey="value"
                   label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
@@ -536,34 +547,30 @@ const CustomerInvoices = () => {
               </PieChart>
             </ResponsiveContainer>
           ) : (
-            <div className="h-44 flex items-center justify-center text-gray-400">
+            <div className="h-48 flex items-center justify-center text-gray-400">
               No invoices yet
             </div>
           )}
         </div>
 
-        {/* Monthly Spending */}
+        {/* Monthly Revenue */}
         <div className="bg-white border border-gray-200 rounded-lg p-5">
-          <h3 className="text-sm font-semibold text-gray-700 mb-4">Monthly Spending</h3>
-          {stats.spendingData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={180}>
-              <AreaChart data={stats.spendingData}>
-                <defs>
-                  <linearGradient id="colorAmount" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
+          <h3 className="text-sm font-semibold text-gray-700 mb-4">Monthly Revenue</h3>
+          {stats.revenueData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={stats.revenueData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                 <XAxis dataKey="month" tick={{ fontSize: 11 }} stroke="#9ca3af" />
                 <YAxis tick={{ fontSize: 11 }} stroke="#9ca3af" tickFormatter={(v) => `₹${v}`} />
-                <Tooltip formatter={(v) => [`₹${v.toFixed(2)}`, 'Amount']} />
-                <Area type="monotone" dataKey="amount" stroke="#6366f1" fillOpacity={1} fill="url(#colorAmount)" />
-              </AreaChart>
+                <Tooltip formatter={(v) => [`₹${v.toFixed(2)}`, '']} />
+                <Legend />
+                <Bar dataKey="total" name="Total Invoiced" fill="#6366f1" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="paid" name="Paid" fill="#22c55e" radius={[4, 4, 0, 0]} />
+              </BarChart>
             </ResponsiveContainer>
           ) : (
-            <div className="h-44 flex items-center justify-center text-gray-400">
-              No spending data
+            <div className="h-48 flex items-center justify-center text-gray-400">
+              No revenue data
             </div>
           )}
         </div>
@@ -577,7 +584,7 @@ const CustomerInvoices = () => {
             <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
               type="text"
-              placeholder="Search by invoice number or vendor..."
+              placeholder="Search by invoice number or customer..."
               value={searchTerm}
               onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
               className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
@@ -617,7 +624,7 @@ const CustomerInvoices = () => {
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
                 <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">Invoice</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">Vendor</th>
+                <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">Customer</th>
                 <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">Date</th>
                 <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
                 <th className="text-right py-3 px-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">Amount</th>
@@ -632,7 +639,7 @@ const CustomerInvoices = () => {
                   <td colSpan="6" className="py-12 text-center text-gray-500">
                     <FiFileText className="w-12 h-12 mx-auto mb-4 text-gray-300" />
                     <p className="font-medium">No invoices found</p>
-                    <p className="text-sm">Your rental invoices will appear here</p>
+                    <p className="text-sm">Invoices from your sales will appear here</p>
                   </td>
                 </tr>
               ) : (
@@ -643,9 +650,8 @@ const CustomerInvoices = () => {
                       <p className="text-xs text-gray-500">{invoice.items?.length || 0} item(s)</p>
                     </td>
                     <td className="py-4 px-4">
-                      <p className="font-medium text-gray-900 text-sm">
-                        {invoice.vendor?.vendorInfo?.businessName || invoice.vendor?.name || 'N/A'}
-                      </p>
+                      <p className="font-medium text-gray-900 text-sm">{invoice.customer?.name || 'N/A'}</p>
+                      <p className="text-xs text-gray-500">{invoice.customer?.email}</p>
                     </td>
                     <td className="py-4 px-4">
                       <p className="text-sm text-gray-900">
@@ -732,4 +738,4 @@ const CustomerInvoices = () => {
   );
 };
 
-export default CustomerInvoices;
+export default VendorInvoices;

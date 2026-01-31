@@ -4,11 +4,12 @@ import Dashboard from '../pages/vendor/Dashboard';
 import Products from '../pages/vendor/Products';
 import AddProduct from '../pages/vendor/AddProduct';
 import Orders from '../pages/vendor/Orders';
+import Invoices from '../pages/vendor/Invoices';
+import Analytics from '../pages/vendor/Analytics';
+import Profile from '../pages/shared/Profile';
 
 // Placeholder components for remaining vendor pages
 const EditProduct = () => <div className="p-6"><h1 className="text-2xl font-bold">Edit Product</h1></div>;
-const Invoices = () => <div className="p-6"><h1 className="text-2xl font-bold">Invoices</h1></div>;
-const Analytics = () => <div className="p-6"><h1 className="text-2xl font-bold">Analytics</h1></div>;
 const Settings = () => <div className="p-6"><h1 className="text-2xl font-bold">Settings</h1></div>;
 
 const VendorRoutes = () => {
@@ -22,6 +23,7 @@ const VendorRoutes = () => {
         <Route path="orders" element={<Orders />} />
         <Route path="invoices" element={<Invoices />} />
         <Route path="analytics" element={<Analytics />} />
+        <Route path="profile" element={<Profile />} />
         <Route path="settings" element={<Settings />} />
         <Route path="*" element={<Dashboard />} />
       </Route>
