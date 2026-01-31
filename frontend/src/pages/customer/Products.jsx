@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { getProducts, getCategories } from '../../slices/productSlice';
+import { getProducts, getCategories, selectAllProducts, selectCategories } from '../../slices/productSlice';
 import { addToCart } from '../../slices/cartSlice';
 import {
   FiSearch,
@@ -17,6 +17,7 @@ import {
   FiSliders,
   FiCheck,
 } from 'react-icons/fi';
+import { toast } from 'react-toastify';
 
 // ============================================================================
 // ENTERPRISE CATALOG PAGE - Clean SaaS Design
@@ -58,156 +59,8 @@ const formatCurrency = (amount) => {
   }).format(amount);
 };
 
-// Dummy Products
-const dummyProducts = [
-  {
-    _id: '1',
-    name: 'Sony A7 IV Camera',
-    description: 'Professional mirrorless camera with 33MP full-frame sensor',
-    images: ['https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=400'],
-    pricing: { daily: 2500, weekly: 15000, monthly: 50000 },
-    ratings: { average: 4.9, count: 128 },
-    category: 'Cameras',
-    condition: 'Like New',
-    availability: true,
-  },
-  {
-    _id: '2',
-    name: 'MacBook Pro 16"',
-    description: 'M3 Pro chip, 18GB RAM, 512GB SSD - Perfect for professionals',
-    images: ['https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=400'],
-    pricing: { daily: 3500, weekly: 20000, monthly: 70000 },
-    ratings: { average: 4.8, count: 96 },
-    category: 'Electronics',
-    condition: 'Excellent',
-    availability: true,
-  },
-  {
-    _id: '3',
-    name: 'DJI Mavic 3 Pro',
-    description: 'Professional drone with 4/3 CMOS Hasselblad camera',
-    images: ['https://images.unsplash.com/photo-1473968512647-3e447244af8f?w=400'],
-    pricing: { daily: 4500, weekly: 25000, monthly: 90000 },
-    ratings: { average: 4.9, count: 74 },
-    category: 'Electronics',
-    condition: 'New',
-    availability: true,
-  },
-  {
-    _id: '4',
-    name: 'Canon RF 70-200mm f/2.8L',
-    description: 'Professional telephoto lens IS USM',
-    images: ['https://images.unsplash.com/photo-1617005082133-548c4dd27f35?w=400'],
-    pricing: { daily: 1800, weekly: 10000, monthly: 35000 },
-    ratings: { average: 4.7, count: 52 },
-    category: 'Cameras',
-    condition: 'Excellent',
-    availability: false,
-  },
-  {
-    _id: '5',
-    name: 'JBL PartyBox 710',
-    description: 'Powerful party speaker with 800W output and LED lights',
-    images: ['https://images.unsplash.com/photo-1545454675-3531b543be5d?w=400'],
-    pricing: { daily: 2000, weekly: 12000, monthly: 40000 },
-    ratings: { average: 4.6, count: 89 },
-    category: 'Audio',
-    condition: 'Good',
-    availability: true,
-  },
-  {
-    _id: '6',
-    name: 'Bosch Power Drill Set',
-    description: 'Professional cordless drill with 50+ accessories',
-    images: ['https://images.unsplash.com/photo-1504148455328-c376907d081c?w=400'],
-    pricing: { daily: 500, weekly: 3000, monthly: 10000 },
-    ratings: { average: 4.5, count: 145 },
-    category: 'Tools',
-    condition: 'Good',
-    availability: true,
-  },
-  {
-    _id: '7',
-    name: 'Herman Miller Aeron Chair',
-    description: 'Ergonomic office chair with full adjustability',
-    images: ['https://images.unsplash.com/photo-1580480055273-228ff5388ef8?w=400'],
-    pricing: { daily: 800, weekly: 5000, monthly: 18000 },
-    ratings: { average: 4.8, count: 67 },
-    category: 'Furniture',
-    condition: 'Excellent',
-    availability: true,
-  },
-  {
-    _id: '8',
-    name: 'GoPro Hero 12 Black',
-    description: 'Waterproof action camera with 5.3K video recording',
-    images: ['https://images.unsplash.com/photo-1564466809058-bf4114d55352?w=400'],
-    pricing: { daily: 1200, weekly: 7000, monthly: 25000 },
-    ratings: { average: 4.7, count: 203 },
-    category: 'Cameras',
-    condition: 'Like New',
-    availability: true,
-  },
-  {
-    _id: '9',
-    name: 'Sony PlayStation 5',
-    description: 'Next-gen gaming console with DualSense controller',
-    images: ['https://images.unsplash.com/photo-1606144042614-b2417e99c4e3?w=400'],
-    pricing: { daily: 1500, weekly: 8000, monthly: 28000 },
-    ratings: { average: 4.9, count: 312 },
-    category: 'Electronics',
-    condition: 'Excellent',
-    availability: true,
-  },
-  {
-    _id: '10',
-    name: 'Projector Epson Pro',
-    description: '4K projector with 3000 lumens, perfect for events',
-    images: ['https://images.unsplash.com/photo-1478720568477-152d9b164e26?w=400'],
-    pricing: { daily: 2200, weekly: 13000, monthly: 45000 },
-    ratings: { average: 4.6, count: 78 },
-    category: 'Electronics',
-    condition: 'Good',
-    availability: true,
-  },
-  {
-    _id: '11',
-    name: 'Camping Tent 6-Person',
-    description: 'Waterproof family tent with easy setup',
-    images: ['https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?w=400'],
-    pricing: { daily: 600, weekly: 3500, monthly: 12000 },
-    ratings: { average: 4.4, count: 156 },
-    category: 'Outdoor',
-    condition: 'Good',
-    availability: true,
-  },
-  {
-    _id: '12',
-    name: 'Electric Scooter',
-    description: 'Foldable e-scooter with 40km range',
-    images: ['https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400'],
-    pricing: { daily: 700, weekly: 4000, monthly: 14000 },
-    ratings: { average: 4.5, count: 89 },
-    category: 'Transport',
-    condition: 'Like New',
-    availability: false,
-  },
-];
-
-// Categories
-const categories = [
-  'All Categories',
-  'Electronics',
-  'Cameras',
-  'Audio',
-  'Tools',
-  'Furniture',
-  'Outdoor',
-  'Transport',
-];
-
 // Conditions
-const conditions = ['All Conditions', 'New', 'Like New', 'Excellent', 'Good'];
+const conditions = ['All Conditions', 'New', 'Like New', 'Excellent', 'Good', 'Fair'];
 
 // Sort Options
 const sortOptions = [
@@ -467,7 +320,14 @@ const capitalizeFirst = (str) => {
 const Products = () => {
   const dispatch = useDispatch();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { products: storeProducts, pagination, isLoading } = useSelector((state) => state.products);
+  
+  // Use Redux selectors for products and categories
+  const products = useSelector(selectAllProducts);
+  const storeCategories = useSelector(selectCategories);
+  const { isLoading } = useSelector((state) => state.products);
+  
+  // Build categories list with "All Categories" option
+  const categories = ['All Categories', ...storeCategories];
 
   // Get category from URL and convert to proper format
   const urlCategory = searchParams.get('category');
@@ -492,14 +352,6 @@ const Products = () => {
       setFilters(prev => ({ ...prev, category: capitalizeFirst(urlCat) }));
     }
   }, [searchParams]);
-
-  useEffect(() => {
-    dispatch(getProducts({ limit: 12 }));
-    dispatch(getCategories());
-  }, [dispatch]);
-
-  // Use store products or dummy products
-  const products = storeProducts?.length > 0 ? storeProducts : dummyProducts;
 
   // Apply filters and sorting
   const filteredProducts = products.filter((product) => {
@@ -532,6 +384,8 @@ const Products = () => {
         return (b.pricing?.daily || 0) - (a.pricing?.daily || 0);
       case 'rating':
         return (b.ratings?.average || 0) - (a.ratings?.average || 0);
+      case 'newest':
+        return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
       default:
         return 0;
     }
@@ -539,6 +393,7 @@ const Products = () => {
 
   const handleAddToCart = (product) => {
     dispatch(addToCart({ product, quantity: 1, duration: 1 }));
+    toast.success(`${product.name} added to cart`);
   };
 
   const clearFilter = (key) => {

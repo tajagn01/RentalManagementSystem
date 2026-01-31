@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
-import { getVendorProducts, deleteProduct } from '../../slices/productSlice';
+import { getVendorProducts, deleteProduct, selectAllProducts, deleteProductLocal } from '../../slices/productSlice';
 import { FiPlus, FiEdit2, FiTrash2, FiEye, FiPackage, FiRefreshCw, FiSearch, FiGrid, FiList } from 'react-icons/fi';
 import { toast } from 'react-toastify';
 
@@ -52,29 +52,28 @@ const StatusBadge = ({ isActive }) => {
 
 const VendorProducts = () => {
   const dispatch = useDispatch();
-  const { products, pagination, isLoading } = useSelector((state) => state.products);
+  // Use local products from Redux state
+  const products = useSelector(selectAllProducts);
+  const { isLoading } = useSelector((state) => state.products);
   const [statusFilter, setStatusFilter] = useState('');
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState('grid');
 
-  useEffect(() => {
-    dispatch(getVendorProducts({ status: statusFilter || undefined }));
-  }, [dispatch, statusFilter]);
-
-  const handleDelete = async (productId) => {
+  const handleDelete = (productId) => {
     if (window.confirm('Are you sure you want to delete this product?')) {
-      try {
-        await dispatch(deleteProduct(productId)).unwrap();
-        toast.success('Product deleted successfully');
-      } catch (error) {
-        toast.error(error);
-      }
+      dispatch(deleteProductLocal(productId));
+      toast.success('Product deleted successfully');
     }
   };
 
-  const filteredProducts = products.filter(product =>
-    product.name.toLowerCase().includes(search.toLowerCase())
-  );
+  // Filter products based on search and status
+  const filteredProducts = products.filter(product => {
+    const matchesSearch = product.name.toLowerCase().includes(search.toLowerCase());
+    const matchesStatus = !statusFilter || 
+      (statusFilter === 'active' && product.availability) ||
+      (statusFilter === 'inactive' && !product.availability);
+    return matchesSearch && matchesStatus;
+  });
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-IN', {
@@ -88,9 +87,9 @@ const VendorProducts = () => {
   // Calculate stats
   const stats = {
     total: products.length,
-    active: products.filter(p => p.isActive).length,
-    inactive: products.filter(p => !p.isActive).length,
-    outOfStock: products.filter(p => p.inventory?.availableQuantity === 0).length,
+    active: products.filter(p => p.availability).length,
+    inactive: products.filter(p => !p.availability).length,
+    outOfStock: products.filter(p => p.totalQuantity === 0).length,
   };
 
   return (
@@ -197,7 +196,7 @@ const VendorProducts = () => {
                       </div>
                     )}
                     <div className="absolute top-3 right-3">
-                      <StatusBadge isActive={product.isActive} />
+                      <StatusBadge isActive={product.availability} />
                     </div>
                   </div>
                   
@@ -207,10 +206,10 @@ const VendorProducts = () => {
 
                     <div className="flex items-center justify-between text-sm pt-2">
                       <span className="text-gray-500">
-                        <span className={`font-medium ${product.inventory?.availableQuantity === 0 ? 'text-red-600' : 'text-gray-900'}`}>
-                          {product.inventory?.availableQuantity}
+                        <span className={`font-medium ${product.totalQuantity === 0 ? 'text-red-600' : 'text-gray-900'}`}>
+                          {product.totalQuantity}
                         </span>
-                        /{product.inventory?.totalQuantity} available
+                        &nbsp;available
                       </span>
                       <span className="font-semibold text-gray-900">
                         {formatCurrency(product.pricing?.daily)}<span className="text-gray-400 font-normal">/day</span>
@@ -256,12 +255,12 @@ const VendorProducts = () => {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         <h3 className="font-semibold text-gray-900 truncate">{product.name}</h3>
-                        <StatusBadge isActive={product.isActive} />
+                        <StatusBadge isActive={product.availability} />
                       </div>
                       <p className="text-sm text-gray-500 line-clamp-1 mb-2">{product.description}</p>
                       <div className="flex items-center gap-4 text-sm">
                         <span className="text-gray-500">
-                          <span className="font-medium text-gray-900">{product.inventory?.availableQuantity}</span>/{product.inventory?.totalQuantity} available
+                          <span className="font-medium text-gray-900">{product.totalQuantity}</span> available
                         </span>
                         <span className="font-semibold text-gray-900">{formatCurrency(product.pricing?.daily)}/day</span>
                       </div>
