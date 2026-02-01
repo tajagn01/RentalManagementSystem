@@ -87,10 +87,18 @@ export const getMe = createAsyncThunk(
         }
       }
       if (!token) {
+        // Clear any stale localStorage data
+        localStorage.removeItem('user');
+        localStorage.removeItem('token');
         return thunkAPI.rejectWithValue('No token found');
       }
       return await authService.getMe(token);
     } catch (error) {
+      // Clear invalid token from localStorage on auth failure
+      if (error.response?.status === 401) {
+        localStorage.removeItem('user');
+        localStorage.removeItem('token');
+      }
       const message = error.response?.data?.message || error.message;
       return thunkAPI.rejectWithValue(message);
     }
@@ -248,11 +256,14 @@ const authSlice = createSlice({
       })
       .addCase(getMe.rejected, (state, action) => {
         state.isLoading = false;
-        state.isError = true;
         state.isAuthenticated = false;
-        state.message = action.payload;
         state.user = null;
         state.token = null;
+        // Don't set error for silent auth check failures
+        if (action.payload !== 'No token found') {
+          state.isError = true;
+          state.message = action.payload;
+        }
       })
       // Update Profile
       .addCase(updateProfile.pending, (state) => {

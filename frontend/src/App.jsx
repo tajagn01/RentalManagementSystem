@@ -20,9 +20,19 @@ function App() {
     // Check if user is logged in on app load
     const userData = localStorage.getItem('user');
     if (userData) {
-      const { token } = JSON.parse(userData);
-      if (token) {
-        dispatch(getMe());
+      try {
+        const parsed = JSON.parse(userData);
+        if (parsed?.token) {
+          dispatch(getMe());
+        } else {
+          // No valid token, clear stale data
+          localStorage.removeItem('user');
+          localStorage.removeItem('token');
+        }
+      } catch {
+        // Invalid JSON, clear stale data
+        localStorage.removeItem('user');
+        localStorage.removeItem('token');
       }
     }
   }, [dispatch]);
@@ -39,7 +49,7 @@ function App() {
   }
 
   return (
-    <Router>
+    <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <div className="min-h-screen bg-gray-50">
         <Routes>
           {/* Public Routes */}
