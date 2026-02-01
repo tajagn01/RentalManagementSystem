@@ -14,7 +14,7 @@ import LandingPage from './pages/LandingPage';
 
 function App() {
   const dispatch = useDispatch();
-  const { isAuthenticated, user, isLoading } = useSelector((state) => state.auth);
+  const { isAuthenticated, user, isLoading, pendingVerification } = useSelector((state) => state.auth);
 
   useEffect(() => {
     // Check if user is logged in on app load
@@ -76,14 +76,26 @@ function App() {
                   }
                   replace
                 />
+              ) : pendingVerification ? (
+                // User has pending verification - redirect to verify-email
+                <Navigate to="/verify-email" replace />
               ) : (
                 <Register />
               )
             }
           />
           
-          {/* Email Verification Route */}
-          <Route path="/verify-email" element={<VerifyEmail />} />
+          {/* Email Verification Route - accessible only with pending verification */}
+          <Route 
+            path="/verify-email" 
+            element={
+              isAuthenticated ? (
+                <Navigate to="/" replace />
+              ) : (
+                <VerifyEmail />
+              )
+            } 
+          />
           
           {/* OTP Login Route */}
           <Route path="/otp-login" element={<OTPLogin />} />
