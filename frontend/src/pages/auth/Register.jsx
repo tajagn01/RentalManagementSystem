@@ -25,19 +25,31 @@ const Register = () => {
   useEffect(() => {
     if (isError) {
       toast.error(message);
+      dispatch(reset());
     }
 
     if (isSuccess && user) {
-      toast.success('Registration successful!');
-      if (user.role === 'vendor') {
-        navigate('/vendor');
+      // Check if email verification is required
+      if (user.requiresEmailVerification) {
+        toast.success('Registration successful! Please verify your email.');
+        dispatch(reset());
+        navigate('/verify-email', { 
+          state: { 
+            email: formData.email,
+            emailSent: user.emailSent !== false // Pass emailSent flag
+          } 
+        });
       } else {
-        navigate('/');
+        toast.success('Registration successful!');
+        dispatch(reset());
+        if (user.role === 'vendor') {
+          navigate('/vendor');
+        } else {
+          navigate('/');
+        }
       }
     }
-
-    dispatch(reset());
-  }, [user, isError, isSuccess, message, navigate, dispatch]);
+  }, [user, isError, isSuccess, message, navigate, dispatch, formData.email]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });

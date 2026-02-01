@@ -8,6 +8,8 @@ import { getMe } from './slices/authSlice';
 import { ProtectedRoute, AdminRoutes, VendorRoutes, CustomerRoutes } from './routes';
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
+import VerifyEmail from './pages/auth/VerifyEmail';
+import OTPLogin from './pages/auth/OTPLogin';
 import LandingPage from './pages/LandingPage';
 
 function App() {
@@ -79,6 +81,12 @@ function App() {
               )
             }
           />
+          
+          {/* Email Verification Route */}
+          <Route path="/verify-email" element={<VerifyEmail />} />
+          
+          {/* OTP Login Route */}
+          <Route path="/otp-login" element={<OTPLogin />} />
 
           {/* Admin Routes */}
           <Route element={<ProtectedRoute allowedRoles={['admin']} />}>

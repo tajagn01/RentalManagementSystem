@@ -129,12 +129,25 @@ const authSlice = createSlice({
       .addCase(register.fulfilled, (state, action) => {
         state.isLoading = false;
         state.isSuccess = true;
-        state.isAuthenticated = true;
-        state.user = action.payload.user;
-        state.token = action.payload.token;
-        state.companies = action.payload.companies || [];
-        state.activeCompany = action.payload.user?.activeCompany || null;
-        state.requiresCompanySelection = action.payload.requiresCompanySelection || false;
+        
+        // Check if email verification is required
+        if (action.payload.requiresEmailVerification) {
+          // Don't set authenticated or store token yet
+          state.isAuthenticated = false;
+          state.user = { 
+            ...action.payload.user, 
+            requiresEmailVerification: true,
+            emailSent: action.payload.emailSent // Include emailSent flag
+          };
+          state.token = null;
+        } else {
+          state.isAuthenticated = true;
+          state.user = action.payload.user;
+          state.token = action.payload.token;
+          state.companies = action.payload.companies || [];
+          state.activeCompany = action.payload.user?.activeCompany || null;
+          state.requiresCompanySelection = action.payload.requiresCompanySelection || false;
+        }
       })
       .addCase(register.rejected, (state, action) => {
         state.isLoading = false;
