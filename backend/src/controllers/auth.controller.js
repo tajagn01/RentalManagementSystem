@@ -173,8 +173,9 @@ exports.login = async (req, res) => {
       });
     }
 
-    // Check if email is verified
-    if (!user.isEmailVerified) {
+    // Check if email is verified (skip if SKIP_EMAIL_VERIFICATION is set)
+    const skipEmailVerification = process.env.SKIP_EMAIL_VERIFICATION === 'true';
+    if (!user.isEmailVerified && !skipEmailVerification) {
       return res.status(403).json({
         success: false,
         message: 'Please verify your email address before logging in',
