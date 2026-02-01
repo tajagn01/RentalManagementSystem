@@ -1,55 +1,81 @@
 const nodemailer = require('nodemailer');
 
 /**
- * EmailService - SMTP Only
+ * EmailService - SMTP with graceful fallback
+ * Works silently when SMTP is not configured (for development/testing)
  */
 class EmailService {
   constructor() {
     this.transporter = null;
+    this.isConfigured = false;
     this.initialize();
   }
 
   initialize() {
-    if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
-      console.error('❌ SMTP not configured! Set SMTP_HOST, SMTP_USER, SMTP_PASS in .env');
+    // Skip SMTP setup if not configured or if email verification is skipped
+    if (process.env.SKIP_EMAIL_VERIFICATION === 'true') {
+      console.log('ℹ️ Email verification skipped - email service disabled');
       return;
     }
 
-    this.transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: parseInt(process.env.SMTP_PORT) || 587,
-      secure: process.env.SMTP_SECURE === 'true',
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
-    });
+    if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
+      console.log('ℹ️ SMTP not configured - email features disabled');
+      return;
+    }
 
-    // Verify connection
-    this.transporter.verify((error) => {
-      if (error) {
-        console.error('❌ SMTP Connection Failed:', error.message);
-      } else {
-        console.log('✅ SMTP Connection Successful');
-      }
-    });
+    try {
+      this.transporter = nodemailer.createTransport({
+        host: process.env.SMTP_HOST,
+        port: parseInt(process.env.SMTP_PORT) || 587,
+        secure: process.env.SMTP_SECURE === 'true',
+        auth: {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASS,
+        },
+        // Add timeout to prevent hanging
+        connectionTimeout: 10000,
+        greetingTimeout: 10000,
+        socketTimeout: 10000,
+      });
+
+      // Verify connection asynchronously (don't block startup)
+      this.transporter.verify()
+        .then(() => {
+          this.isConfigured = true;
+          console.log('✅ SMTP Connection Successful');
+        })
+        .catch((error) => {
+          console.log('⚠️ SMTP not available:', error.message);
+          this.transporter = null;
+        });
+    } catch (error) {
+      console.log('⚠️ SMTP setup failed:', error.message);
+    }
   }
 
   async sendEmail({ to, subject, html, text }) {
+    // Silently skip if not configured
     if (!this.transporter) {
-      throw new Error('Email service not configured');
+      console.log(`📧 [SKIPPED] Would send "${subject}" to ${to}`);
+      return { success: true, skipped: true };
     }
 
-    const info = await this.transporter.sendMail({
-      from: `"${process.env.EMAIL_FROM_NAME || 'RentalHub'}" <${process.env.EMAIL_FROM}>`,
-      to,
-      subject,
-      html,
-      text,
-    });
+    try {
+      const info = await this.transporter.sendMail({
+        from: `"${process.env.EMAIL_FROM_NAME || 'RentalHub'}" <${process.env.EMAIL_FROM || process.env.SMTP_USER}>`,
+        to,
+        subject,
+        html,
+        text,
+      });
 
-    console.log('✅ Email sent to:', to);
-    return { success: true, messageId: info.messageId };
+      console.log('✅ Email sent to:', to);
+      return { success: true, messageId: info.messageId };
+    } catch (error) {
+      console.log('⚠️ Email send failed:', error.message);
+      // Don't throw - return success:false but don't break the flow
+      return { success: false, error: error.message };
+    }
   }
 
   async sendVerificationEmail(email, code, userName) {
