@@ -15,29 +15,53 @@ const Register = () => {
     role: 'customer',
   });
   const [showPassword, setShowPassword] = useState(false);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
 
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { user, isLoading, isError, isSuccess, message } = useSelector(
-    (state) => state.auth
-  );
+  
+  // Use registrationComplete flag and pendingVerification for navigation
+  const { 
+    isLoading, 
+    isError, 
+    isSuccess, 
+    isAuthenticated,
+    message, 
+    pendingVerification,
+    registrationComplete 
+  } = useSelector((state) => state.auth);
 
+  // Handle errors
   useEffect(() => {
     if (isError) {
       toast.error(message);
+      dispatch(reset());
     }
+  }, [isError, message, dispatch]);
 
-    if (isSuccess && user) {
-      toast.success('Registration successful!');
-      if (user.role === 'vendor') {
-        navigate('/vendor');
-      } else {
-        navigate('/');
+  // Handle successful registration - use registrationComplete flag
+  useEffect(() => {
+    if (registrationComplete) {
+      if (pendingVerification) {
+        // User needs to verify email
+        toast.success('Registration successful! Please verify your email.');
+        dispatch(reset()); // Reset flags but keep pendingVerification
+        navigate('/verify-email', { 
+          state: { 
+            email: pendingVerification.email,
+            emailSent: pendingVerification.emailSent
+          },
+          replace: true
+        });
+      } else if (isAuthenticated) {
+        // Email verification was skipped - user is authenticated
+        toast.success('Registration successful!');
+        dispatch(reset());
+        // Navigate based on role from the successful registration
+        navigate('/', { replace: true });
       }
     }
-
-    dispatch(reset());
-  }, [user, isError, isSuccess, message, navigate, dispatch]);
+  }, [registrationComplete, pendingVerification, isAuthenticated, navigate, dispatch]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -45,6 +69,11 @@ const Register = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+
+    if (!agreedToTerms) {
+      toast.error('Please agree to the Terms of Service and Privacy Policy');
+      return;
+    }
 
     if (formData.password !== formData.confirmPassword) {
       toast.error('Passwords do not match');
@@ -214,20 +243,47 @@ const Register = () => {
               </div>
             </div>
 
-            <div className="flex items-start pt-1">
-              <input
-                type="checkbox"
-                required
-                className="mt-0.5 w-4 h-4 rounded border-gray-300 text-gray-900 focus:ring-2 focus:ring-gray-900 focus:ring-offset-0 transition-colors"
-              />
-              <label className="ml-2 text-xs text-gray-600 leading-relaxed">
-                I agree to the{' '}
-                <Link to="/terms" className="text-gray-900 hover:text-gray-700 font-medium transition-colors">
-                  Terms of Service
-                </Link>{' '}
-                and{' '}
-                <Link to="/privacy" className="text-gray-900 hover:text-gray-700 font-medium transition-colors">
-                  Privacy Policy
+              {/* Terms checkbox */}
+              <div className="flex items-start gap-2 pt-1">
+                <input
+                  type="checkbox"
+                  id="terms"
+                  checked={agreedToTerms}
+                  onChange={(e) => setAgreedToTerms(e.target.checked)}
+                  required
+                  className="mt-1 rounded border-gray-300 text-gray-900 focus:ring-gray-900"
+                />
+                <label htmlFor="terms" className="text-xs text-gray-500">
+                  I agree to the{' '}
+                  <Link to="/terms" className="text-gray-900 hover:text-black underline">
+                    Terms of Service
+                  </Link>{' '}
+                  and{' '}
+                  <Link to="/privacy" className="text-gray-900 hover:text-black underline">
+                    Privacy Policy
+                  </Link>
+                </label>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full py-3.5 bg-gray-900 hover:bg-black text-white font-medium rounded-xl transition-all duration-200 flex items-center justify-center shadow-lg shadow-gray-900/30 hover:shadow-black/40"
+              >
+                {isLoading ? (
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  "Let's start!"
+                )}
+              </button>
+            </form>
+
+            {/* Sign in link */}
+            <div className="text-center mt-5">
+              <p className="text-gray-500 text-sm">
+                Already have an account?{' '}
+                <Link to="/login" className="text-gray-900 hover:text-black font-medium underline">
+                  Sign in
                 </Link>
               </label>
             </div>

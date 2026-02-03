@@ -55,6 +55,7 @@ const seedDatabase = async () => {
       role: 'admin',
       phone: '+1234567890',
       isActive: true,
+      isEmailVerified: true,
       companyMemberships: [{
         company: company1._id,
         role: 'owner',
@@ -78,6 +79,7 @@ const seedDatabase = async () => {
       role: 'vendor',
       phone: '+1234567891',
       isActive: true,
+      isEmailVerified: true,
       vendorInfo: {
         businessName: 'Test Vendor Business',
         businessAddress: '123 Vendor Street',
@@ -101,6 +103,7 @@ const seedDatabase = async () => {
       role: 'customer',
       phone: '+1234567892',
       isActive: true,
+      isEmailVerified: true,
     });
     console.log(`Created customer: ${customer.email}`);
 
@@ -112,6 +115,7 @@ const seedDatabase = async () => {
       role: 'admin',
       phone: '+1234567893',
       isActive: true,
+      isEmailVerified: true,
       companyMemberships: [{
         company: company2._id,
         role: 'owner',

@@ -132,13 +132,13 @@ const ProductCard = ({ product, onAddToCart, userId }) => {
               alt={product.name}
               onLoad={() => setImageLoaded(true)}
               onError={() => setImageError(true)}
-              className={`w-full h-full object-cover transition-transform duration-300 group-hover:scale-105 ${
+              className={`absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105 ${
                 imageLoaded ? 'opacity-100' : 'opacity-0'
               }`}
             />
           </>
         ) : (
-          <div className="w-full h-full flex items-center justify-center">
+          <div className="absolute inset-0 w-full h-full flex items-center justify-center bg-gray-50">
             <FiPackage className="w-12 h-12 text-gray-300" />
           </div>
         )}

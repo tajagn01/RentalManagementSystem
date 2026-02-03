@@ -8,20 +8,32 @@ import { getMe } from './slices/authSlice';
 import { ProtectedRoute, AdminRoutes, VendorRoutes, CustomerRoutes } from './routes';
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
+import VerifyEmail from './pages/auth/VerifyEmail';
+import OTPLogin from './pages/auth/OTPLogin';
 import LandingPage from './pages/LandingPage';
 import TermsAndConditions from './pages/TermsAndConditions';
 
 function App() {
   const dispatch = useDispatch();
-  const { isAuthenticated, user, isLoading } = useSelector((state) => state.auth);
+  const { isAuthenticated, user, isLoading, pendingVerification } = useSelector((state) => state.auth);
 
   useEffect(() => {
     // Check if user is logged in on app load
     const userData = localStorage.getItem('user');
     if (userData) {
-      const { token } = JSON.parse(userData);
-      if (token) {
-        dispatch(getMe());
+      try {
+        const parsed = JSON.parse(userData);
+        if (parsed?.token) {
+          dispatch(getMe());
+        } else {
+          // No valid token, clear stale data
+          localStorage.removeItem('user');
+          localStorage.removeItem('token');
+        }
+      } catch {
+        // Invalid JSON, clear stale data
+        localStorage.removeItem('user');
+        localStorage.removeItem('token');
       }
     }
   }, [dispatch]);
@@ -38,7 +50,7 @@ function App() {
   }
 
   return (
-    <Router>
+    <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <div className="min-h-screen bg-gray-50">
         <Routes>
           {/* Public Routes */}
@@ -75,11 +87,29 @@ function App() {
                   }
                   replace
                 />
+              ) : pendingVerification ? (
+                // User has pending verification - redirect to verify-email
+                <Navigate to="/verify-email" replace />
               ) : (
                 <Register />
               )
             }
           />
+          
+          {/* Email Verification Route - accessible only with pending verification */}
+          <Route 
+            path="/verify-email" 
+            element={
+              isAuthenticated ? (
+                <Navigate to="/" replace />
+              ) : (
+                <VerifyEmail />
+              )
+            } 
+          />
+          
+          {/* OTP Login Route */}
+          <Route path="/otp-login" element={<OTPLogin />} />
 
           {/* Admin Routes */}
           <Route element={<ProtectedRoute allowedRoles={['admin']} />}>

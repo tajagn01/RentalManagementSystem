@@ -141,7 +141,7 @@ const ProductDetail = () => {
                 <img
                   src={product.images[currentImageIndex]}
                   alt={product.name}
-                  className="w-full h-full object-cover"
+                  className="absolute inset-0 w-full h-full object-cover"
                 />
                 {product.images.length > 1 && (
                   <>
@@ -161,7 +161,7 @@ const ProductDetail = () => {
                 )}
               </>
             ) : (
-              <div className="w-full h-full flex items-center justify-center">
+              <div className="absolute inset-0 w-full h-full flex items-center justify-center bg-gray-50">
                 <FiPackage className="w-16 h-16 text-gray-400" />
               </div>
             )}
@@ -172,11 +172,11 @@ const ProductDetail = () => {
                 <button
                   key={idx}
                   onClick={() => setCurrentImageIndex(idx)}
-                  className={`w-20 h-20 rounded-lg overflow-hidden flex-shrink-0 border-2 transition-colors ${
+                  className={`relative w-20 h-20 rounded-lg overflow-hidden flex-shrink-0 border-2 transition-colors ${
                     idx === currentImageIndex ? 'border-blue-600' : 'border-transparent'
                   }`}
                 >
-                  <img src={img} alt="" className="w-full h-full object-cover" />
+                  <img src={img} alt="" className="absolute inset-0 w-full h-full object-cover" />
                 </button>
               ))}
             </div>

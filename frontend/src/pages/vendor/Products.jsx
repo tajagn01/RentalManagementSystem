@@ -210,10 +210,10 @@ const VendorProducts = () => {
                       <img
                         src={product.images[0]}
                         alt={product.name}
-                        className="w-full h-full object-cover"
+                        className="absolute inset-0 w-full h-full object-cover"
                       />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center">
+                      <div className="absolute inset-0 w-full h-full flex items-center justify-center bg-gray-50">
                         <FiPackage className="w-12 h-12 text-gray-300" />
                       </div>
                     )}
